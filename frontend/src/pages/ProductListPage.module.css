@@ -1,0 +1,39 @@
+.page {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+  color: var(--color-gray-dark);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.25rem;
+}
+
+.status {
+  color: var(--color-gray-mid);
+  font-size: 0.95rem;
+}
+
+.error {
+  color: var(--color-scarlet);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .page {
+    flex-direction: column;
+  }
+}
