@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ProductResponse } from "../types/product";
+import { AddToCartButton } from "./AddToCartButton/AddToCartButton";
 import styles from "./ProductCard.module.css";
 
 interface ProductCardProps {
@@ -8,25 +9,37 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   return (
-    <Link to={`/products/${product.id}`} className={styles.card}>
-      <div className={styles.imageWrapper}>
-        {product.imageUrl ? (
-          <img
-            src={product.imageUrl}
-            alt={product.name ?? "Product"}
-            className={styles.image}
-          />
-        ) : (
-          <div className={styles.placeholder}>
-            <span>📦</span>
-          </div>
-        )}
+    <div className={styles.card}>
+      <Link to={`/products/${product.id}`} className={styles.cardLink}>
+        <div className={styles.imageWrapper}>
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name ?? "Product"}
+              className={styles.image}
+            />
+          ) : (
+            <div className={styles.placeholder}>
+              <span>📦</span>
+            </div>
+          )}
+        </div>
+        <div className={styles.body}>
+          <span className={styles.category}>{product.categoryName}</span>
+          <h3 className={styles.name}>{product.name}</h3>
+          <p className={styles.price}>${product.price.toFixed(2)}</p>
+        </div>
+      </Link>
+      <div className={styles.cardFooter}>
+        <AddToCartButton
+          product={{
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.imageUrl,
+          }}
+        />
       </div>
-      <div className={styles.body}>
-        <span className={styles.category}>{product.categoryName}</span>
-        <h3 className={styles.name}>{product.name}</h3>
-        <p className={styles.price}>${product.price.toFixed(2)}</p>
-      </div>
-    </Link>
+    </div>
   );
 }
