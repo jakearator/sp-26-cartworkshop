@@ -1,5 +1,7 @@
 using backend.Data;
 using backend.Middleware;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,11 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 // --- Services ---
 
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<MarketplaceContext>(options =>
-    options.UseInMemoryDatabase("MarketplaceDb"));
+    options.UseSqlite("Data Source=shoppingcart.db"));
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
