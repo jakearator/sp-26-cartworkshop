@@ -1,4 +1,5 @@
 import type { ProductFilters, ProductResponse } from "../types/product";
+import { ApiError, apiFetchJson } from "./client";
 
 export async function fetchProducts(
     filters?: ProductFilters,
@@ -14,16 +15,19 @@ export async function fetchProducts(
     const query = params.toString();
     const url = `/api/Products${query ? `?${query}` : ""}`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
-    return res.json();
+    return apiFetchJson<ProductResponse[]>(url);
 }
 
 export async function fetchProduct(id: number): Promise<ProductResponse> {
-    const res = await fetch(`/api/Products/${encodeURIComponent(id)}`);
-    if (res.status === 404) throw new NotFoundError("Product not found");
-    if (!res.ok) throw new Error(`Failed to fetch product: ${res.status}`);
-    return res.json();
+    try {
+        return await apiFetchJson<ProductResponse>(`/api/Products/${encodeURIComponent(id)}`);
+    } catch (error: unknown) {
+        if (error instanceof ApiError && error.status === 404) {
+            throw new NotFoundError("Product not found");
+        }
+
+        throw error;
+    }
 }
 
 export class NotFoundError extends Error {

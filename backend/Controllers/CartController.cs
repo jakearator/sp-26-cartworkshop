@@ -1,17 +1,18 @@
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace backend.Controllers;
 
 [ApiController]
 [Route("api/cart")]
+[Authorize]
 public class CartController : ControllerBase
 {
-    private const string CurrentUserId = "default-user";
-
     private readonly MarketplaceContext _context;
 
     public CartController(MarketplaceContext context)
@@ -22,12 +23,17 @@ public class CartController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<CartResponse>> GetCart()
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Unauthorized();
+
         var cart = await _context.Carts
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
-            .FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+            .FirstOrDefaultAsync(c => c.UserId == currentUserId);
 
         if (cart is null)
             return NotFound();
@@ -39,21 +45,26 @@ public class CartController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(CartItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<CartItemResponse>> AddToCart(AddToCartRequest request)
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Unauthorized();
+
         var product = await _context.Products.FindAsync(request.ProductId);
         if (product is null)
             return NotFound();
 
         var cart = await _context.Carts
             .Include(c => c.Items)
-            .FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+            .FirstOrDefaultAsync(c => c.UserId == currentUserId);
 
         if (cart is null)
         {
             cart = new Cart
             {
-                UserId = CurrentUserId,
+                UserId = currentUserId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -97,8 +108,13 @@ public class CartController : ControllerBase
     [HttpPut("{cartItemId}")]
     [ProducesResponseType(typeof(CartItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<CartItemResponse>> UpdateCartItem(int cartItemId, UpdateCartItemRequest request)
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Unauthorized();
+
         var cartItem = await _context.CartItems
             .Include(item => item.Cart)
             .Include(item => item.Product)
@@ -107,7 +123,7 @@ public class CartController : ControllerBase
         if (cartItem is null)
             return NotFound();
 
-        if (cartItem.Cart.UserId != CurrentUserId)
+        if (cartItem.Cart.UserId != currentUserId)
             return NotFound();
 
         cartItem.Quantity = request.Quantity;
@@ -132,8 +148,13 @@ public class CartController : ControllerBase
     [HttpDelete("{cartItemId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteCartItem(int cartItemId)
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Unauthorized();
+
         var cartItem = await _context.CartItems
             .Include(item => item.Cart)
             .FirstOrDefaultAsync(item => item.Id == cartItemId);
@@ -141,7 +162,7 @@ public class CartController : ControllerBase
         if (cartItem is null)
             return NotFound();
 
-        if (cartItem.Cart.UserId != CurrentUserId)
+        if (cartItem.Cart.UserId != currentUserId)
             return NotFound();
 
         _context.CartItems.Remove(cartItem);
@@ -155,11 +176,16 @@ public class CartController : ControllerBase
     [HttpDelete("clear")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ClearCart()
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Unauthorized();
+
         var cart = await _context.Carts
             .Include(c => c.Items)
-            .FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+            .FirstOrDefaultAsync(c => c.UserId == currentUserId);
 
         if (cart is null)
             return NotFound();

@@ -1,155 +1,116 @@
-# React + TypeScript + Vite
+# Buckeye Marketplace
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Full-stack marketplace app with a React + TypeScript frontend and ASP.NET Core Web API backend.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Frontend: React 19 + TypeScript + Vite
+- Backend: ASP.NET Core Web API (.NET 8)
+- Data: EF Core (SQLite runtime DB, InMemory used in tests)
+- Auth: JWT bearer tokens
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- .NET SDK 8.x
+- Node.js 20+
+- npm
 
-## Expanding the ESLint configuration
+## Backend Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-## Shopping Cart Migration Notes (Why SQLite Was Added)
-
-### What changed
-
-The backend database provider was switched from EF Core InMemory to EF Core SQLite for migration commands.
-
-The key service registration now uses:
-
-```csharp
-options.UseSqlite("Data Source=shoppingcart.db");
-```
-
-### Why this was necessary
-
-The InMemory provider is useful for simple runtime testing, but it is not a relational database provider.
-
-EF Core migrations are built for relational providers because migrations generate relational schema operations such as:
-
-- table creation
-- foreign keys
-- indexes
-- constraints
-
-When the project was using InMemory, EF tooling could build the project but failed during migration operations because migration services require a relational provider.
-
-### How it works now
-
-With SQLite configured:
-
-1. EF can compare the current DbContext model against the last snapshot.
-2. EF generates a migration file with schema operations (for example creating Carts and CartItems tables and their foreign keys).
-3. EF applies those operations to a local SQLite database file named shoppingcart.db.
-
-This enables the full migration workflow while keeping your cart models and API endpoint logic unchanged.
-
-### Commands used
-
-Run these from the backend folder:
+From the workspace root:
 
 ```powershell
+cd backend
 dotnet restore
-dotnet ef migrations add AddShoppingCart
-dotnet ef database update
 ```
 
-### Outcome
+Set JWT secret using either user secrets (recommended for local dev) or environment variable.
 
-The AddShoppingCart migration was created successfully and applied to the SQLite database, including:
+Option A: User Secrets
 
-- Carts table
-- CartItems table
-- foreign keys from CartItems to Carts and Products
-- indexes on CartId and ProductId
+```powershell
+dotnet user-secrets set "Jwt:SigningKey" "replace-with-a-long-random-secret"
+```
 
-## Cart API Mapping Strategy: Manual Mapping vs AutoMapper
+Option B: Environment Variable
 
-For the shopping cart endpoints, we intentionally chose manual mapping instead of AutoMapper.
+```powershell
+$env:JWT_SIGNING_KEY="replace-with-a-long-random-secret"
+```
 
-### Why we chose manual mapping
+Run backend:
 
-1. Cart responses include business-specific computed values, not just 1:1 property copies.
-  - CartResponse totals are derived values (TotalItems, Subtotal, Total).
-  - CartItemResponse includes LineTotal and flattened product fields.
-2. The mapping logic is easy to read directly in the controller during M4 development.
-3. With the current project size, manual mapping keeps behavior explicit and reduces hidden conventions.
-4. It is simpler to debug because all transformation logic is visible at the endpoint level.
+```powershell
+dotnet run
+```
 
-### Why not AutoMapper yet
+Default local API URL is typically:
 
-1. AutoMapper provides the most value when there are many repetitive mappings.
-2. In this codebase, mapping count is still small and highly custom for cart calculations.
-3. Introducing profiles and mapping configuration now would add complexity with limited immediate payoff.
+- `http://localhost:5228`
+- Swagger UI: `http://localhost:5228/swagger`
 
-### Re-evaluation criteria
+## Frontend Setup
 
-We should revisit AutoMapper when:
+From the workspace root:
 
-1. DTO mapping volume increases significantly across controllers.
-2. Mapping logic becomes repetitive and mostly structural.
-3. We want centralized mapping profiles with dedicated mapping tests.
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
+Frontend runs at:
+
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+
+Vite dev server proxies `/api/*` calls to backend `http://localhost:5228`.
+
+## Test Credentials
+
+There are no hardcoded seeded login users in the running app.
+Create a test user via register, then log in with the same credentials.
+
+Recommended test credentials:
+
+- Username: `student1`
+- Password: `StrongPass123!`
+
+You can create this user in the UI or API:
+
+```http
+POST /api/auth/register
+{
+  "username": "student1",
+  "password": "StrongPass123!"
+}
+```
+
+## Run Tests
+
+Backend tests:
+
+```powershell
+cd backend.Tests
+dotnet test
+```
+
+Frontend tests:
+
+```powershell
+cd frontend
+npm test
+```
+
+## Security Checklist Notes (Week 13)
+
+- User identity for protected cart operations is read from JWT `NameIdentifier` claim.
+- JWT signing key is loaded from user secrets or environment config, not appsettings JSON.
+- CORS policy allows local frontend dev origins for both `localhost` and `127.0.0.1` on port `5173`.
+- No raw SQL string concatenation is used in backend code.
+- No `dangerouslySetInnerHTML` usage exists in frontend source.
+- Admin role claims are included in issued JWTs and are ready for role-based endpoint protection as admin endpoints are added.
+
+# 4/15/2026
+
+review ai-usuage-log.md for AI usage for AI-Assisted Security, QA & Testing Workshop

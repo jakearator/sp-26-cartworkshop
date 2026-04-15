@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ForbiddenError, UnauthorizedError } from "../api/client";
 import { fetchProduct, NotFoundError } from "../api/products";
 import type { ProductResponse } from "../types/product";
 import styles from "./ProductDetailPage.module.css";
@@ -29,7 +30,14 @@ export default function ProductDetailPage() {
         } else {
           setState({
             status: "error",
-            message: err instanceof Error ? err.message : "Unknown error",
+            message:
+              err instanceof UnauthorizedError
+                ? "Session expired. Please sign in again."
+                : err instanceof ForbiddenError
+                  ? "You do not have permission to access this resource."
+                  : err instanceof Error
+                    ? err.message
+                    : "Unknown error",
           });
         }
       });

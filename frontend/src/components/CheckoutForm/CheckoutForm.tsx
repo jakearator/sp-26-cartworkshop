@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { CartItem } from '../../types/cart';
 import { useCartContext } from '../../contexts/CartContext';
 import styles from './CheckoutForm.module.css';
 
@@ -89,10 +90,22 @@ function validateAll(data: FormData): FormErrors {
 }
 
 interface CheckoutFormProps {
-  onOrderPlaced?: () => void;
+  items: CartItem[];
+  onOrderPlaced?: (details: PlacedOrderDetails) => void;
 }
 
-export function CheckoutForm({ onOrderPlaced }: CheckoutFormProps) {
+export interface PlacedOrderDetails {
+  shipping: {
+    fullName: string;
+    email: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+}
+
+export function CheckoutForm({ items, onOrderPlaced }: CheckoutFormProps) {
   const { cartItemCount, cartTotal, dispatch } = useCartContext();
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -126,7 +139,16 @@ export function CheckoutForm({ onOrderPlaced }: CheckoutFormProps) {
 
     setIsProcessing(true);
     await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-    onOrderPlaced?.();
+    onOrderPlaced?.({
+      shipping: {
+        fullName: formData.fullName,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+      },
+    });
     dispatch({ type: 'CLEAR_CART' });
     setIsProcessing(false);
     setIsSuccess(true);
@@ -134,7 +156,7 @@ export function CheckoutForm({ onOrderPlaced }: CheckoutFormProps) {
 
   if (isSuccess) {
     return (
-      <div className={styles.success} role="status" aria-live="polite">
+      <div className={styles.success} role="status" aria-live="polite" data-testid="order-confirmation">
         <h2 className={styles.successHeading}>Order placed successfully!</h2>
         <p className={styles.successBody}>
           Your order is on its way to{' '}
@@ -148,6 +170,7 @@ export function CheckoutForm({ onOrderPlaced }: CheckoutFormProps) {
   }
 
   const isCartEmpty = cartItemCount === 0;
+  const noItemsProp = items.length === 0;
 
   return (
     <section className={styles.section} aria-label="Checkout">
@@ -325,7 +348,7 @@ export function CheckoutForm({ onOrderPlaced }: CheckoutFormProps) {
         <button
           type="submit"
           className={styles.submitButton}
-          disabled={isCartEmpty || isProcessing}
+          disabled={isCartEmpty || noItemsProp || isProcessing}
           aria-label={isProcessing ? 'Processing your order' : 'Place your order'}
           aria-busy={isProcessing}
         >

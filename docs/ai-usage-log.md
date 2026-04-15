@@ -25,3 +25,266 @@
 - **Issues found:** Similar to Cart Components (Part 4), it started off something like localhost:####/api/products/checkoutform, but I wanted it to sync with each other. So, I made sure when you do click the cart and add or remove items, it display all that information below it so you can see all of it at once. I also had to edit the "Processing...", as it wasn't giving a "Success, will be shipping to this address ####...etc", so, with the agent, I added a screen BEFORE you go back to the home page basically taking the information you filled out and saying "Success, it'll be shipped to here ...etc". It all runs smooth, like how a normal ecommernce website would (like Amazon).
 
 Picture of checkout form: ![alt text](image.png)
+
+# 4/15/2026 Part 1: create your testing agent (best candiates for test section)
+
+Three backend unit test candidates
+
+Add-to-cart quantity merge logic
+File target: CartController.cs:35
+Why it matters: This is the highest-risk cart mutation path. Verify that posting the same product twice increments quantity instead of creating duplicate lines, and that line total uses updated quantity.
+
+Update-cart ownership guard
+File target: CartController.cs:91
+Why it matters: Prevents cross-user cart-item updates. Even with the current default-user setup, this guard is a key security behavior and easy to regress during auth work in M5.
+
+Request validation boundaries for cart mutations
+File targets: AddToCartRequestValidator.cs:6, UpdateCartItemRequestValidator.cs:6
+Why it matters: Quantity and product ID bounds are business-critical inputs. These tests catch invalid payloads before controller logic and reduce downstream bug noise.
+
+One backend integration test candidate
+
+Cart lifecycle API happy path (create cart, add item, read cart, clear cart)
+File targets: CartController.cs:17, Program.cs:1, MarketplaceContext.cs:14
+Why it matters: Validates full wiring (routing, validation middleware, EF persistence, DTO mapping, totals). This gives confidence that the API works as deployed, not just method-by-method.
+
+Three frontend unit test candidates
+
+Reducer add/update/remove invariants
+File target: cartReducer.ts:8
+Why it matters: This is the core cart state engine. Verify add-on-existing increments quantity, update-to-zero removes item, and clear cart empties state.
+
+Context-derived totals and counts
+File target: CartContext.tsx:18
+Why it matters: Badge count and checkout totals depend on these reducers; incorrect derived values create visible pricing/count bugs across pages.
+
+Checkout validation and submit transition
+File target: CheckoutForm.tsx:53
+Why it matters: Ensures required-field errors appear, submit is blocked when invalid/empty cart, and successful submit clears cart and shows confirmation state.
+
+One E2E happy-path test candidate
+
+Shopper flow from catalog to successful order
+File targets: App.tsx:1, ProductListPage.tsx:1, AddToCartButton.tsx:12, CartBadge.tsx:5, CartPage.tsx:7, CheckoutForm.tsx:91
+Why it matters: Covers the primary conversion path a user cares about: load products, add to cart, see badge update, review cart total, place order, and see success confirmation. This is the single best confidence test before demos or releases.
+
+# 4/15/2026 checkpoint 2 security agent check
+
+added changes through this security agent:
+
+Step 1 review: dependencies corrected for .NET 8 auth stack
+Added JWT bearer package in backend.csproj:11.
+Added Identity Core package for PasswordHasher support in backend.csproj:20.
+Added User Secrets support via UserSecretsId in backend.csproj:7.
+Result: package versions are framework-compatible and buildable.
+Step 2 review: JWT auth pipeline and secure key sourcing implemented
+Added authentication/authorization middleware and JWT validation in Program.cs:36.
+Enforced key source to environment variable or non-JSON config providers (covers User Secrets, excludes appsettings json providers) in Program.cs:16 and Program.cs:111.
+Token validation now includes lifetime validation and role/name claim mapping in Program.cs:41.
+Token expiration policy set to 60 minutes in Program.cs:31.
+CORS kept/expanded for local frontend origins in Program.cs:77.
+Step 3 review: auth endpoints, hashing, and required claims added
+Added register/login endpoints in AuthController.cs:12.
+Passwords are hashed/verified using PasswordHasher in InMemoryAuthUserStore.cs:13.
+JWTs now include NameIdentifier and Role claims in AuthController.cs:68.
+Added auth DTO contracts in:
+RegisterRequest.cs:1
+LoginRequest.cs:1
+AuthResponse.cs:1
+Added JWT options model in JwtTokenOptions.cs:1.
+Added user model in AuthUser.cs:1.
+Step 4 review: cart authorization moved from hardcoded user to JWT identity
+Removed hardcoded default user and required authentication on cart endpoints in CartController.cs:11.
+Ownership checks now use ClaimTypes.NameIdentifier from the JWT in CartController.cs:30, CartController.cs:52, CartController.cs:114, CartController.cs:154, and CartController.cs:182.
+Validation result
+
+Backend build succeeded with zero errors after all changes.
+Important behavior note
+
+Cart endpoints now require a valid bearer token. Existing frontend cart calls will return 401 until frontend login/token handling is wired.
+
+# 4/15/2026 checkpoint 2 double check after manual review: 
+
+Checkpoint verification results:
+
+No secret literal in source code: pass
+Key is loaded from environment or non-appsettings providers in Program.cs:16.
+No JWT signing key in appsettings.json committed to GitHub: pass
+appsettings.json has no Jwt signing key.
+appsettings.Development.json has no Jwt signing key.
+Login still works after change: pass
+Manually tested over HTTPS at https://localhost:7001/api/auth/login and received valid token/expiry/user/role.
+If CORS was the issue, auth endpoints now behave the same as rest of API: pass
+HTTPS preflight to auth endpoint returned expected CORS headers including Access-Control-Allow-Origin for localhost 5173.
+CORS policy is in Program.cs:76.
+JWT key stored securely for local development: pass
+Stored in User Secrets and resolved at runtime.
+User Secrets enabled in backend.csproj:7.
+Fixed one real auth/config problem or confirmed setup correct: fixed
+Real issue found and fixed: User Secrets were accidentally excluded by overly broad JSON filtering.
+Corrected to exclude only appsettings sources in Program.cs:111.
+Manually tested login after change: pass
+Register and login both tested successfully over HTTPS.
+JWT payload verified to include NameIdentifier and Role claims.
+
+# 4/15/2026 checkpoint 3 fix real security issues (ofc manually checked it too)
+
+Implemented and validated the auth-aware frontend API layer; your requested fix is complete, and only unrelated pre-existing build errors remain in a different component.Implemented.
+
+What I changed:
+
+Added a shared API client with auth handling in client.ts.
+Updated product API calls to use that client in products.ts.
+Added explicit 401/403 UI messaging in:
+ProductListPage.tsx
+ProductDetailPage.tsx
+What the fix now does:
+
+Automatically adds Authorization Bearer token from localStorage key authToken on requests.
+On 401:
+clears stored token
+emits auth:required browser event
+throws typed UnauthorizedError
+On 403:
+emits auth:required browser event
+throws typed ForbiddenError
+For other non-OK responses:
+throws ApiError with parsed ProblemDetails message when available.
+Validation:
+
+No TypeScript/lint errors in the modified files (checked with diagnostics).
+Frontend full build currently fails due to pre-existing unrelated type issues in ProductCard.tsx, not from this fix.
+
+# 4/15/2026 checkpoint 4a backend tests: 
+
+What I added:
+
+Test project and references:
+backend.Tests.csproj
+Unit tests (4 total):
+UnitTest1.cs
+ValidateCredentials returns user for correct password
+ValidateCredentials returns null for wrong password
+CartControllerUnitTests.cs
+GetCart returns Unauthorized when NameIdentifier claim is missing (claims parsing/auth handling)
+GetCart returns exact TotalItems/Subtotal/Total for seeded cart items (order total logic)
+Integration test using WebApplicationFactory<Program> (1 total):
+CartOwnershipIntegrationTests.cs
+Registers two real users, adds cart item as user A, attempts update as user B, asserts NotFound (ownership filtering issue)
+Minimal test-host support:
+Program.cs
+Added partial Program declaration for WebApplicationFactory<Program>
+dotnet test output:
+
+First attempt failed because backend exe was locked by a running process.
+Re-run result:
+Determining projects to restore...
+All projects are up-to-date for restore.
+backend -> backend.dll
+backend.Tests -> backend.Tests.dll
+Starting test execution, please wait...
+Passed! - Failed: 0, Passed: 5, Skipped: 0, Total: 5, Duration: 2 s
+
+# 4/15/2026 checkpint 4b frontend tests:
+
+Tests are in place and the requested command has been run successfully with all suites passing; I am preparing a concise summary with the inspected files, what was added, and the exact test output.
+
+Implemented and verified frontend tests per your requirements.
+
+Inspected files before generating tests:
+
+TESTING-AGENT.MD
+package.json
+vite.config.ts
+tsconfig.app.json
+cartReducer.ts
+CartContext.tsx
+FilterSidebar.tsx
+CartBadge.tsx
+AddToCartButton.tsx
+cart.ts
+What I added:
+
+Vitest + RTL setup and scripts:
+package.json
+vite.config.ts
+tsconfig.app.json
+setup.ts
+New tests:
+
+Pure function test: cartReducer.test.ts
+Reducer/context test: CartContext.test.tsx
+Component test: FilterSidebar.test.tsx
+Test command run (exactly requested):
+
+npm test -- --run
+Output:
+
+RUN v4.1.4 C:/Users/jakea/sp-26-cartworkshop/frontend
+✓ src/reducers/cartReducer.test.ts (2 tests)
+✓ src/contexts/CartContext.test.tsx (2 tests)
+✓ src/components/FilterSidebar.test.tsx (1 test)
+Test Files 3 passed (3)
+Tests 5 passed (5)
+Duration 2.46s
+Notes:
+
+Assertions were kept strict (exact payloads, exact totals, exact call counts, explicit provider error message).
+No invented helpers or fake app flows were introduced; tests target existing code only.
+
+# 4/15/2026 checkpoint 5 generate E2E tests (hard part)
+
+Implemented and completed end-to-end.
+
+Manual flow execution with snapshots:
+
+Register or log in with valid user: Passed.
+Registered user qasuer0415 (shown in header as signed-in).
+Snapshot captured after successful sign-in on products page.
+Browse products: Passed.
+Products grid loaded and visible.
+Snapshot captured on products page.
+Add item to cart: Passed.
+Added Wireless Headphones to cart.
+Cart badge updated to 1.
+Snapshot captured.
+Go to checkout and place order: Passed.
+Navigated to cart, completed checkout fields, submitted Place Order.
+Verify order confirmation appears: Passed.
+Confirmation card showed Order placed successfully.
+Snapshot captured on confirmation state.
+Go to order history and verify order listed: Passed.
+Order history showed new order entry with total, shipping, and item line.
+Snapshot captured.
+QA-focused frontend additions made so the requested flow is real:
+
+Auth context + register/login UI: src/contexts/AuthContext.tsx, src/pages/AuthPage.tsx, src/pages/AuthPage.module.css, src/api/auth.ts, src/types/auth.ts
+Order history persistence + UI: src/services/orderHistory.ts, src/pages/OrderHistoryPage.tsx, src/pages/OrderHistoryPage.module.css, src/types/order.ts
+Routing/header integration: src/App.tsx, src/components/Layout.tsx, src/components/Layout.module.css
+Checkout integration to store placed orders and expose stable confirmation selector: src/pages/CartPage.tsx, src/components/CheckoutForm/CheckoutForm.tsx
+Auth token helpers export for session handling: src/api/client.ts
+Playwright spec generated from executed flow:
+
+Config: playwright.config.ts
+Spec: tests/e2e/checkout-order-history.spec.ts
+Selector strategy in spec:
+
+Uses getByRole, getByLabel, and getByTestId.
+Added minimal data-testid for stability:
+signed-in-user
+order-confirmation
+order-history-list
+order-history-item
+Playwright run result:
+
+First run failed because browser binaries were not installed:
+Error: browserType.launch executable missing
+Required command: npx playwright install
+Installed Chromium binaries with npx playwright install chromium
+Re-ran tests successfully:
+Running 1 test using 1 worker
+1 passed (18.8s)
+
+Main issue for this portion was: 
+
+The main issue was that Playwright itself was installed, but its browser executable was not, so test launch failed until Chromium binaries were installed with npx playwright install chromium (or npx playwright install).

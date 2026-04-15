@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchProducts } from "../api/products";
+import { ForbiddenError, UnauthorizedError } from "../api/client";
 import FilterSidebar from "../components/FilterSidebar";
 import ProductCard from "../components/ProductCard";
 import type { ProductFilters, ProductResponse } from "../types/product";
@@ -25,7 +26,14 @@ export default function ProductListPage() {
         if (!cancelled)
           setState({
             status: "error",
-            message: err instanceof Error ? err.message : "Unknown error",
+            message:
+              err instanceof UnauthorizedError
+                ? "Session expired. Please sign in again."
+                : err instanceof ForbiddenError
+                  ? "You do not have permission to access this resource."
+                  : err instanceof Error
+                    ? err.message
+                    : "Unknown error",
           });
       });
 

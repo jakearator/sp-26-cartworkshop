@@ -1,13 +1,33 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckoutForm } from '../components/CheckoutForm/CheckoutForm';
+import {
+  CheckoutForm,
+  type PlacedOrderDetails,
+} from '../components/CheckoutForm/CheckoutForm';
+import { useAuthContext } from '../contexts/AuthContext';
 import { useCartContext } from '../contexts/CartContext';
+import { saveOrderHistoryEntry } from '../services/orderHistory';
 import styles from './CartPage.module.css';
 
 export default function CartPage() {
   const { state, dispatch, cartTotal } = useCartContext();
+  const { user } = useAuthContext();
   const { items } = state;
   const [orderPlaced, setOrderPlaced] = useState(false);
+
+  function handleOrderPlaced(details: PlacedOrderDetails) {
+    if (user) {
+      saveOrderHistoryEntry({
+        username: user.username,
+        placedAt: new Date().toISOString(),
+        total: cartTotal,
+        items,
+        shipping: details.shipping,
+      });
+    }
+
+    setOrderPlaced(true);
+  }
 
   if (items.length === 0 && !orderPlaced) {
     return (
@@ -104,7 +124,7 @@ export default function CartPage() {
         </>
       )}
 
-      <CheckoutForm onOrderPlaced={() => setOrderPlaced(true)} />
+      <CheckoutForm items={items} onOrderPlaced={handleOrderPlaced} />
     </div>
   );
 }

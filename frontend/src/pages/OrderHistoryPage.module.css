@@ -1,0 +1,65 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--color-gray-dark);
+}
+
+.message {
+  margin: 0;
+  color: var(--color-gray-mid);
+}
+
+.link {
+  color: var(--color-scarlet);
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.orderList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.orderItem {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.55rem;
+  padding: 0.8rem 0.95rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.orderId {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-gray-dark);
+}
+
+.total {
+  font-weight: 700;
+  color: var(--color-scarlet);
+}
+
+.meta {
+  margin: 0.35rem 0 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
