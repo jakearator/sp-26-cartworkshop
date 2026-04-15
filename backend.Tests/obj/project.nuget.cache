@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "k5BfdwdgXvY=",
+  "dgSpecHash": "+Z8i9MSZgXk=",
   "success": true,
-  "projectFilePath": "C:\\Users\\jakea\\sp-26-cartworkshop\\backend.Tests\\backend.Tests.csproj",
+  "projectFilePath": "C:\\Users\\jakea\\sp-26-cartworkshopp\\backend.Tests\\backend.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\jakea\\.nuget\\packages\\coverlet.collector\\6.0.0\\coverlet.collector.6.0.0.nupkg.sha512",
     "C:\\Users\\jakea\\.nuget\\packages\\fluentvalidation\\11.11.0\\fluentvalidation.11.11.0.nupkg.sha512",
